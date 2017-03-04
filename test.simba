@@ -1,0 +1,62 @@
+program test;
+{$hints off}
+{$define SMART}
+{$I SRL/OSR.simba}
+{$I ObjectWalk/Walker.simba}
+
+const
+  DEBUG_POINTS = False;
+
+procedure Init();
+begin
+  srl.Debugging := False;
+  Smart.EnableDrawing := True;
+  Smart.JavaPath := 'D:\Java7-32\bin\javaw.exe';
+  Smart.Init();
+end;
+
+var
+  Walker: TObjectWalk;
+  colors:TIntegerArray;
+  path:TWalkPath;
+  bmp:TMufasaBitmap;
+begin
+  Init();
+
+  //Go into fally bank (the one close to guild mine)
+  if not DEBUG_POINTS then
+  begin
+    SetLength(Path, 5);
+    path[0].Features := [[mmTree, 585, 68],[mmRed, 655, 122],[mmRed, 634, 129]];
+    path[0].Steps := [[620,86], [620, 133]];
+
+    path[1].Features := [[mmLadder, 661, 102],[mmLadder, 589, 92],[mmRed, 666, 118]];
+    path[1].Steps := [[642,137]];
+
+    path[2].Features := [[mmRed, 665, 65],[mmTree, 661, 118],[mmLadder, 659, 49]];
+    path[2].Steps := [[620,133]];
+
+    path[3].Features := [[mmPalmTree, 686, 111],[mmTree, 645, 91],[mmTree, 644, 130]];
+    path[3].Steps := [[620,133]];
+
+    path[4].Features := [[mmTree, 623, 82],[mmRock, 658, 128],[mmTree, 611, 112]];
+    path[4].Steps := [[612, 128], [597, 142]];
+
+    Walker.Init();
+    Walker.Walk(path);
+  end else
+  begin
+
+    while True do
+    begin
+      Walker.DebugMinimap(smart.Image);
+      Smart.Image.DrawTPA(TPAFromCircle(642,84, 63), 1118740);
+      //bmp := GetMufasaBitmap(BitmapFromClient(Minimap.GetBounds()));
+      //Walker.DebugMinimap(bmp, [-Minimap.GetBounds().x1,-Minimap.GetBounds().y1]);
+      //bmp.Debug();
+      Wait(90);
+      //bmp.Free();
+    end;
+
+  end;
+end.

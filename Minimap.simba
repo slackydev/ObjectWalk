@@ -1,0 +1,189 @@
+{$include_once SRL/OSR.simba}
+
+type
+  EMinimapObject = (
+    mmLadder, mmTree, mmDeadTree, mmPalmTree, mmFlax, mmBoulder, mmHenge,
+    mmCactus, mmMaple, mmRock, mmRed
+  );
+
+  MMObjDef = record
+    Color, CTS, Tol: Int32;
+    SplitX, SplitY: Int32;
+    SatMod, HueMod: Extended;
+    AvgNumOfPoints, AvgTol: Int32;
+  end;
+
+(*
+  Filters points so you only end up with points actually on the minimap..
+  This works unlike the broken shit in SRL/SRL #BlameOlly
+*)
+procedure TMinimap.FilterPointsFix(var TPA:TPointArray);
+var
+  MMPoly: TPointArray = [
+    [571,77], [571,67], [575,54], [581,43], [587,35], [598,25], [609,18],
+    [628,11], [645,10], [658,11], [671,15], [683,22], [692,29], [702,40],
+    [709,50], [713,63], [713,65], [713,82], [708,105],[702,115],[670,135],
+    [660,145],[658,151],[651,158],[633,158],[628,154],[625,151],[623,145],
+    [613,135],[601,128],[584,117],[578,110],[573,96]
+  ];
+  tmp:TPointArray;
+  i:Int32;
+begin
+  for i:=0 to High(TPA) do
+    if srl.PointInPoly(TPA[i], MMPoly) then
+      tmp += TPA[i];
+  TPA := tmp;
+end;
+
+
+//inspired by function in ObjectDTM (by euph..)
+function TMinimap.FindObjEx(Obj:MMObjDef; x1,y1,x2,y2:Int32; cX,cY,Radius:Int32): TPointArray;
+var
+  CTS,i,avgN,lo,hi: Integer;
+  CTS2Modifiers: array [0..1] of Extended;
+  TPA: TPointArray;
+  mid: TPoint;
+begin
+  CTS := GetToleranceSpeed();
+  SetColorToleranceSpeed(Obj.CTS);
+
+  GetToleranceSpeed2Modifiers(CTS2Modifiers[0], CTS2Modifiers[1]);
+  SetToleranceSpeed2Modifiers(Obj.HueMod, Obj.SatMod);
+
+  for i:=0 to 3 do
+    if (FindColorsTolerance(TPA, Obj.Color, x1, y1, x2, y2, Obj.Tol+i)) then
+      Break;
+  //FilterPointsPie(TPA, 0,360, 0, Radius, cX, cY);
+  Minimap.FilterPointsFix(TPA);
+
+  SetToleranceSpeed2Modifiers(CTS2Modifiers[0], CTS2Modifiers[1]);
+  SetColorToleranceSpeed(CTS);
+
+  avgN := Obj.AvgNumOfPoints;
+  for TPA in ClusterTPAEx(TPA, Obj.SplitX, Obj.SplitY) do
+  begin
+    mid := MiddleTPA(TPA);
+
+    if InRange(Length(TPA), avgN - Obj.AvgTol, avgN + Obj.AvgTol) then
+      Result += mid
+    else
+    begin
+      if (Distance(cX, cY, mid.X, mid.Y) > Radius - 2) then
+      begin
+        lo := Round((avgN / 2) - ((Obj.AvgTol / 3) * 2));
+        hi := Round((avgN / 2) - ((Obj.AvgTol / 3) * 2));
+        if InRange(Length(TPA), lo, hi) then
+          Result += mid;
+      end;
+    end;
+  end;
+end;
+
+
+function TMinimap.FindObj(Obj: MMObjDef): TPointArray;
+begin                //       MM area      Mid   Rad
+  Result := FindObjEx(Obj, 570,9,714,159, 642,84, 71);
+end;
+
+
+(*
+ Based on a function in ObjectDTM (by euph..)
+ The object definitions might not work properly, this is a rough sketch.
+ The colors comment is what I've used to calibrate tolerances.
+*)
+var
+  MMObjRecords: array [EMinimapObject] of MMObjDef;
+begin
+  {colors: 6993, 865128}
+  with MMObjRecords[mmLadder] do
+  begin
+    Color := 337758; CTS := 1; Tol := 20;
+    HueMod := 0.1; SatMod := 0.9;
+    SplitX := 2; SplitY := 2;
+    AvgNumOfPoints := 32; AvgTol := 14;
+  end;
+
+  {colors: 1391694, 140343}
+  with MMObjRecords[mmTree] do
+  begin
+    Color := 733250; CTS := 2; Tol := 30; //stem
+    HueMod := 0.03; SatMod := 0.9;
+    SplitX := 1; SplitY := 1;
+    AvgNumOfPoints := 7; AvgTol := 6;
+  end;
+
+  with MMObjRecords[mmDeadTree] do
+  begin
+    Color := 1387330; CTS := 1; Tol := 9;
+    SplitX := 2; SplitY := 2;
+    AvgNumOfPoints := 19; AvgTol := 10;
+  end;
+
+  {colors: 2843707, 3570509, 1714838}
+  with MMObjRecords[mmPalmTree] do
+  begin
+    Color := 3570509; CTS := 2; Tol := 10;
+    HueMod := 0.15; SatMod := 0.7;
+    SplitX := 1; SplitY := 1;
+    AvgNumOfPoints := 22; AvgTol := 10;
+  end;
+
+  with MMObjRecords[mmFlax] do
+  begin
+    Color := 9398872; CTS := 2; Tol := 4;
+    HueMod := 1.01; SatMod := 2.87;
+    SplitX := 2; SplitY := 2;
+    AvgNumOfPoints := 6; AvgTol := 3;
+  end;
+
+  with MMObjRecords[mmBoulder] do
+  begin
+    Color := 1920118; CTS := 1; Tol := 7;
+    SplitX := 1; SplitY := 1;
+    AvgNumOfPoints := 37; AvgTol := 18;
+  end;
+
+  with MMObjRecords[mmHenge] do
+  begin
+    Color := 4409670; CTS := 1; Tol := 6;
+    SplitX := 1; SplitY := 1;
+    AvgNumOfPoints := 9; AvgTol := 6;
+  end;
+
+  with MMObjRecords[mmCactus] do
+  begin
+    Color := 3570509; CTS := 1; Tol := 6;
+    SplitX := 1; SplitY := 1;
+    AvgNumOfPoints := 100; AvgTol := 80;
+  end;
+
+  with MMObjRecords[mmMaple] do
+  begin
+    Color := 999524; CTS := 1; Tol := 7;
+    SplitX := 1; SplitY := 1;
+    AvgNumOfPoints := 17; AvgTol := 5;
+  end;
+
+  with MMObjRecords[mmRock] do
+  begin
+    Color := 5923680; CTS := 1; Tol := 14;
+    SplitX := 1; SplitY := 1;
+    AvgNumOfPoints := 25; AvgTol := 12;
+  end;
+
+  with MMObjRecords[mmRed] do
+  begin
+    Color := 240; CTS := 1; Tol := 22;
+    SplitX := 1; SplitY := 1;
+    AvgNumOfPoints := 8; AvgTol := 5;
+  end;
+end;
+
+
+
+
+
+
+
+
+
