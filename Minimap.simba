@@ -13,24 +13,27 @@ type
     AvgNumOfPoints, AvgTol: Int32;
   end;
 
-(*
-  Filters points so you only end up with points actually on the minimap..
-  This works unlike the broken shit in SRL/SRL #BlameOlly
-*)
-procedure TMinimap.FilterPointsFix(var TPA:TPointArray);
-var
-  MMPoly: TPointArray = [
+
+const
+  MINIMAP_POLYGON: TPointArray = [
     [571,77], [571,67], [575,54], [581,43], [587,35], [598,25], [609,18],
     [628,11], [645,10], [658,11], [671,15], [683,22], [692,29], [702,40],
     [709,50], [713,63], [713,65], [713,82], [708,105],[702,115],[670,135],
     [660,145],[658,151],[651,158],[633,158],[628,154],[625,151],[623,145],
     [613,135],[601,128],[584,117],[578,110],[573,96]
   ];
+
+(*
+  Filters points so you only end up with points actually on the minimap..
+  This works unlike the broken shit in SRL/SRL #BlameOlly
+*)
+procedure TMinimap.FilterPointsFix(var TPA:TPointArray);
+var
   tmp:TPointArray;
   i:Int32;
 begin
   for i:=0 to High(TPA) do
-    if srl.PointInPoly(TPA[i], MMPoly) then
+    if srl.PointInPoly(TPA[i], MINIMAP_POLYGON) then
       tmp += TPA[i];
   TPA := tmp;
 end;
@@ -94,88 +97,88 @@ end;
 var
   MMObjRecords: array [EMinimapObject] of MMObjDef;
 begin
-  {colors: 6993, 865128}
+  {colors: 1717603,1783655,6976,6993,865128}
   with MMObjRecords[mmLadder] do
   begin
-    Color := 337758; CTS := 1; Tol := 20;
-    HueMod := 0.1; SatMod := 0.9;
+    Color := 928084; CTS := 1; Tol := 30;
     SplitX := 2; SplitY := 2;
-    AvgNumOfPoints := 32; AvgTol := 14;
+    AvgNumOfPoints := 32; AvgTol := 19;
   end;
 
-  {colors: 1391694, 140343}
+  {colors: 602944,271914,1391694,140343,2310221}
   with MMObjRecords[mmTree] do
   begin
-    Color := 733250; CTS := 2; Tol := 30; //stem
-    HueMod := 0.03; SatMod := 0.9;
-    SplitX := 1; SplitY := 1;
+    Color := 1258044; CTS := 1; Tol := 30; //stem
+    SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 7; AvgTol := 6;
   end;
 
+  {colors: 2305857,6452,1387330,267550}
   with MMObjRecords[mmDeadTree] do
   begin
-    Color := 1387330; CTS := 1; Tol := 9;
+    Color := 1188400; CTS := 1; Tol := 30;
     SplitX := 2; SplitY := 2;
-    AvgNumOfPoints := 19; AvgTol := 10;
+    AvgNumOfPoints := 20; AvgTol := 8;
   end;
 
-  {colors: 2843707, 3570509, 1714838}
+  {colors: 137352,2633365,463487}
   with MMObjRecords[mmPalmTree] do
   begin
-    Color := 3570509; CTS := 2; Tol := 10;
-    HueMod := 0.15; SatMod := 0.7;
+    Color := 1384586; CTS := 1; Tol := 30;
     SplitX := 1; SplitY := 1;
-    AvgNumOfPoints := 22; AvgTol := 10;
+    AvgNumOfPoints := 4; AvgTol := 3;
   end;
 
   with MMObjRecords[mmFlax] do
   begin
-    Color := 9398872; CTS := 2; Tol := 4;
-    HueMod := 1.01; SatMod := 2.87;
+    Color := 9398872; CTS := 1; Tol := 1; //not tweaked
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 6; AvgTol := 3;
   end;
 
+  //3757702, 1920118, 3890578
   with MMObjRecords[mmBoulder] do
   begin
-    Color := 1920118; CTS := 1; Tol := 7;
+    Color := 2905476; CTS := 1; Tol := 30; //partially tweaked
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 37; AvgTol := 18;
   end;
 
   with MMObjRecords[mmHenge] do
   begin
-    Color := 4409670; CTS := 1; Tol := 6;
+    Color := 4409670; CTS := 1; Tol := 1; //not tweaked
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 9; AvgTol := 6;
   end;
 
+  //5013585
   with MMObjRecords[mmCactus] do
   begin
-    Color := 3570509; CTS := 1; Tol := 6;
+    Color := 5013585; CTS := 1; Tol := 30;
     SplitX := 1; SplitY := 1;
-    AvgNumOfPoints := 100; AvgTol := 80;
+    AvgNumOfPoints := 80; AvgTol := 50;
   end;
 
   with MMObjRecords[mmMaple] do
   begin
-    Color := 999524; CTS := 1; Tol := 7;
+    Color := 999524; CTS := 1; Tol := 1; //not tweaked
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 17; AvgTol := 5;
   end;
 
+  {colors: 5923680,7429746,7365990,4869977,7365990}
   with MMObjRecords[mmRock] do
   begin
-    Color := 5923680; CTS := 1; Tol := 14;
+    Color := 6183526; CTS := 1; Tol := 30;
     SplitX := 1; SplitY := 1;
-    AvgNumOfPoints := 25; AvgTol := 12;
+    AvgNumOfPoints := 34; AvgTol := 18;
   end;
 
   with MMObjRecords[mmRed] do
   begin
     Color := 240; CTS := 1; Tol := 22;
     SplitX := 1; SplitY := 1;
-    AvgNumOfPoints := 8; AvgTol := 5;
+    AvgNumOfPoints := 8; AvgTol := 6;
   end;
 end;
 

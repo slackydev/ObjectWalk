@@ -15,29 +15,29 @@ type
     typ: EMinimapObject;
     x,y: Int32;
   end;
-  TFeaturePoints = array of TFeaturePoint;
+  TMMDTM = array of TFeaturePoint;
 
-  TMinimapObject = record
+  TMMObjects = record
     typ: EMinimapObject;
     TPA: TPointArray;
   end;
-  TMinimapObjects = array of TMInimapObject;
+  TMMObjectsArray = array of TMMObjects;
 
   TFoundFeatures = record
     arr:TPointArray;
     scale,theta:Double;
   end;
 
-  TPathArea = record
-    Features: TFeaturePoints;
-    Steps: array of TPoint; //one set of features can cover several points.
+  TPathPoint = record
+    Features: TMMDTM;
+    Points: TPointArray; //one set of features can cover several points.
   end;
-  TWalkPath = array of TPathArea;
+  TMMPath = array of TPathPoint;
 
   TObjectWalk = record
     Types: TIntegerArray;
-    MaxOffset,MaxInaccuracy,MaxScale:Double;
-    Debugging:Boolean;
+    MaxOffset, MaxInaccuracy, MaxScale: Double;
+    Debugging: Boolean;
   end;
 
   TLine = record p,q:TPoint; end;
@@ -46,12 +46,12 @@ type
 const
   //16 high pitch colors that should genrally show well on the minimap.
   COLOR_LIST16: TIntegerArray = [
-      $0000ff, $00ff88, $eeff00, $ff0066, $6666ff, $66ffb8, $f5ff66, $ff66a3,
-      $00bbff, $33ff00, $ff5500, $dd00ff, $66d6ff, $85ff66, $ff9966, $eb66ff
+      $0000ff, $00ff44, $eeff00, $ff0066, $6666ff, $55ffff, $f5ff66, $ff66a3,
+      $00bbff, $5555DD, $ff5500, $dd00ff, $66d6ff, $85ff66, $ff9966, $eb66ff
   ];
 
 
-function TFeaturePoints.RotateToCompass(): TFeaturePoints; constref;
+function TMMDTM.RotateToCompass(): TMMDTM; constref;
 var
   i:Int32;
   pt:TPoint;
@@ -77,7 +77,7 @@ end;
     For anything else, we'd just use the first result, and assume the user has
     defined enough feature points to never return duplicates.
 *)
-function TFeaturePoints.FindEx(Objects:TMInimapObjects; radius:Double=180; sm:Double=1.15; eps:Double=3): TFoundFeatures; constref;
+function TMMDTM.FindEx(Objects:TMMObjectsArray; radius:Double=180; sm:Double=1.15; eps:Double=3): TFoundFeatures; constref;
 type
   TNode = record
     typ:EMinimapObject;
@@ -93,7 +93,7 @@ var
   i,j,k:Int32;
   dist1,dist2,angle1,angle2,newA,newD,offset,scale:Double;
   pts:array of TNode;
-  candidates: TMinimapObject;
+  candidates: TMMObjects;
   tmp,path:TPointArray;
   mp,pt,newPt:TPoint;
 
@@ -193,19 +193,19 @@ end;
 
 (*
   this is the function above, just does ous the favor of finding minimap objects
-  first. It will only look for the objects that is used in the "DTM" (TFeaturePoints)
+  first. It will only look for the objects that is used in the "DTM" (TMMDTM)
 *)
-function TFeaturePoints.Find(radius:Double=180; sm:Double=1.15; eps:Double=3): TFoundFeatures; constref;
+function TMMDTM.Find(radius:Double=180; sm:Double=1.15; eps:Double=3): TFoundFeatures; constref;
 var
   i:Int32;
   test:TIntegerArray;
-  MMObjects:TMinimapObjects;
+  MMObjects:TMMObjectsArray;
 begin
   for i:=0 to High(self) do
   begin
     if test.Find(Ord(self[i].typ)) >= 0 then
       Continue;
-    MMObjects += TMinimapObject([self[i].typ, Minimap.FindObj(MMObjRecords[self[i].typ])]);
+    MMObjects += TMMObjects([self[i].typ, Minimap.FindObj(MMObjRecords[self[i].typ])]);
     test += Ord(self[i].typ);
   end;
   Result := self.FindEx(MMObjects, radius,sm,eps);
@@ -218,7 +218,7 @@ var
   i,j: Int32;
   mp:TPoint;
 begin
-  self.Debugging := SmartDebug;  //Yeah.. I need this.
+  self.Debugging := SmartDebug;  //
   self.MaxOffset := 15;          //How much the minimap can offset in relation to the compass.
   self.MaxInaccuracy := 2.7;     //With rotation, slightly inaccurate object finding and other defomities, we need to allow a little inaccuracy.
   self.MaxScale := 1.13;         //minimap scales, from 0.95 to 1.05 (10%), so we allow 13% scaling of our feature points (3% more than what can be, to be on the safeside).
@@ -228,8 +228,6 @@ end;
 function TObjectWalk.IsFlagPresent(searchTime:Int32=500): Boolean; static;
 var
   TPA: TPointArray;
-  ATPA: T2DPointArray;
-  i: Int32;
   B:TBox := [570,9,714,159];
   t:Int64;
 begin
@@ -237,12 +235,9 @@ begin
   t := GetTickCount64() + searchTime;
   while GetTickCount64() < t do
     if FindColorsTolerance(TPA, 255, B.x1,B.y1,B.x2,B.y2, 1) then
-    begin
-      ATPA := SplitTPA(TPA,1);
-      for i:=0 to High(ATPA) do
-        if (Length(ATPA[i]) >= 10) and (Length(ATPA[i]) <= 50) then
+      for TPA in SplitTPA(TPA,1) do
+        if (Length(TPA) >= 10) and (Length(TPA) <= 50) then
           Exit(True);
-    end;
 end;
 
 
@@ -250,25 +245,25 @@ end;
  Meh.. these two methods aren't really used, but I might need them for
  debugging later on
 *)
-function TObjectWalk.FindObjects(ObjIds: TIntegerArray): TMinimapObjects; static;
+function TObjectWalk.FindObjects(ObjIds: TIntegerArray): TMMObjectsArray; static;
 var typ:Int32;
 begin
   for typ in ObjIds do
-    Result += TMinimapObject([EMinimapObject(typ), Minimap.FindObj(MMObjRecords[typ])]);
+    Result += TMMObjects([EMinimapObject(typ), Minimap.FindObj(MMObjRecords[typ])]);
 end;
 
-function TObjectWalk.FindObjects(Ft: TFeaturePoints): TMinimapObjects; static; overload;
+function TObjectWalk.FindObjects(DTM: TMMDTM): TMMObjectsArray; static; overload;
 var
   i:Int32;
   test:TIntegerArray;
 begin
-  for i:=0 to High(Ft) do
+  for i:=0 to High(DTM) do
   begin
-    if test.Find(Ord(Ft[i].typ)) >= 0 then
+    if test.Find(Ord(DTM[i].typ)) >= 0 then
       Continue;
 
-    Result += TMinimapObject([Ft[i].typ, Minimap.FindObj(MMObjRecords[Ft[i].typ])]);
-    test += Ord(Ft[i].typ);
+    Result += TMMObjects([DTM[i].typ, Minimap.FindObj(MMObjRecords[DTM[i].typ])]);
+    test += Ord(DTM[i].typ);
   end;
 end;
 
@@ -286,21 +281,35 @@ begin
   Result := Point(Round(mp.x + p.r * Cos(p.t)), Round(mp.y + p.r * Sin(p.t)));
 end;
 
+function TObjectWalk.FindDTM(out Res:TFoundFeatures; DTM:TMMDTM; MaxTime:Int32=6000): Boolean; constref;
+var
+  t:Int64;
+begin
+  Res := [];
+  t := GetTickCount()+MaxTime;
+  while (GetTickCount() < t) and (Res.Arr = []) do
+  begin
+    Res := DTM.RotateToCompass().Find(self.MaxOffset, self.MaxScale, self.MaxInaccuracy);
+    if Res.Arr = [] then Wait(60);
+  end;
+  Result := Res.Arr <> [];
+end;
+
 (*
   Just a neat function to have..
   It locates the "goal" point taking into account all minimap transformations..
   Then it returns the distance from you (at minimap center) to this point.
 *)
-function TObjectWalk.DistanceTo(Goal:TPoint; Ft:TFeaturePoints): Double; constref;
+function TObjectWalk.DistanceTo(Goal:TPoint; DTM:TMMDTM): Double; constref;
 var
   F:TFoundFeatures;
   other,me:TPoint;
   i:Int32;
 begin
-  Goal.x -= Ft[0].x;
-  Goal.y -= Ft[0].y;
+  Goal.x -= DTM[0].x;
+  Goal.y -= DTM[0].y;
   me := minimap.Center;
-  F := Ft.RotateToCompass().Find(self.MaxOffset, self.MaxScale, self.MaxInaccuracy);
+  F := DTM.RotateToCompass().Find(self.MaxOffset, self.MaxScale, self.MaxInaccuracy);
 
   other := self.GetPoint(Goal, F.arr[0], F.theta, F.scale);
   Result := Hypot(me.x-other.x, me.y-other.y);
@@ -309,6 +318,7 @@ end;
 (*
   Yeah.. this one is supersimple, with no random at all (this is a prototype after all).
 *)
+
 procedure TObjectWalk.WalkTo(pt:TPoint); constref;
 begin
   Mouse.Click(pt,1);
@@ -319,37 +329,42 @@ end;
 (*
   This is your best friend. It will walk the minimap up, down, and sideways, yo!
 *)
-procedure TObjectWalk.Walk(Path:TWalkPath); constref;
+function TObjectWalk.Walk(Path:TMMPath): Boolean; constref;
 var
-  t:Int64;
-  i,typ:Int32;
+  i:Int32;
+  step,pt:TPoint;
   F:TFoundFeatures;
-  pt,step:TPoint;
-  Objects: TMinimapObjects;
 begin
   for i:=0 to High(Path) do
-    for step in Path[i].Steps do
+  begin
+    for step in Path[i].Points do
     begin
-      F := [];
-      t := GetTickCount()+24000;
-      while (GetTickCount() < t) and (Length(F.arr) = 0) do
+      {$IFDEF SMART}
+      if self.Debugging then
       begin
-        {$IFDECL SMART}
-        if self.Debugging then self.DebugMinimap(smart.Image);
-        {$ENDIF}
+        self.DebugDTM(step, Path[i].Features, smart.Image);
+        Wait(100);
+      end;
+      {$ENDIF}
 
-        F := Path[i].Features.RotateToCompass().Find(self.MaxOffset, self.MaxScale, self.MaxInaccuracy);
+      if not self.FindDTM(F,Path[i].Features) then
+      begin
+        WriteLn('Warning: Unable to find DTM ', i);
+        Exit(False);
       end;
 
       pt.x := step.x - Path[i].Features[0].x;
       pt.y := step.y - Path[i].Features[0].y;
       pt := self.GetPoint(pt, F.arr[0], F.theta, F.scale);
 
-      {$IFDECL SMART}
-      if self.Debugging then begin Wait(550); smart.Image.DrawClear(0); end;
+      {$IFDEF SMART}
+      if self.Debugging then smart.Image.DrawClear(0);
       {$ENDIF}
+
       self.WalkTo(pt);
     end;
+  end;
+  Result := True;
 end;
 
 
@@ -382,19 +397,22 @@ begin
 end;
 
 
-procedure TObjectWalk.DebugFindFeature(Goal:TPoint; Ft:TFeaturePoints; im:TMufasaBitmap; offset:TPoint=[0,0]; Clear:Boolean=True); constref;
+procedure TObjectWalk.DebugDTM(Goal:TPoint; DTM:TMMDTM; im:TMufasaBitmap; offset:TPoint=[0,0]; Clear:Boolean=True); constref;
 var
   F:TFoundFeatures;
   found:TPoint;
   i,color:Int32;
 begin
-  Goal.x -= Ft[0].x;
-  Goal.y -= Ft[0].y;
+  Goal.x -= DTM[0].x;
+  Goal.y -= DTM[0].y;
 
-  F := Ft.RotateToCompass().Find(self.MaxOffset, self.MaxScale, self.MaxInaccuracy);
-  if F.arr = [] then Exit;
+  F := DTM.RotateToCompass().Find(self.MaxOffset, self.MaxScale, self.MaxInaccuracy);
+  if F.arr = [] then
+  begin
+    WriteLn('Unable to find DTM!');
+    Exit;
+  end;
   found := self.GetPoint(Goal, F.arr[0], F.theta, F.scale);
-
   if Clear then im.DrawClear(0);
 
   Im.SetPixel(offset.x+found.x, offset.y+found.y, $FFFFFF);
