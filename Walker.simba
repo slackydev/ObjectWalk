@@ -82,26 +82,20 @@ type
     typ:EMinimapObject;
     R,T:Double;
   end;
-  TTree = record
-    typ:EMinimapObject;
-    points:TPointArray;
-  end;
 var
-  MMObjList:array of TTree;
   i,j,k:Int32;
   dist1,dist2,angle1,angle2,newA,newD,offset,scale:Double;
   pts:array of TNode;
-  candidates: TMMObjects;
-  TPA,tmp,path:TPointArray;
+  candidates,TPA,tmp,path:TPointArray;
   mp,pt,newPt:TPoint;
 
   function GetObjectPoints(typ:EMinimapObject; out points: TPointArray): Boolean;
   var i:Int32;
   begin
-    for i:=0 to High(MMObjList) do
-      if MMObjList[i].typ = typ then
+    for i:=0 to High(Objects) do
+      if Objects[i].typ = typ then
       begin
-        points := Copy(MMObjList[i].points);
+        points := Copy(Objects[i].TPA);
         Result := True;
       end;
   end;
@@ -135,20 +129,17 @@ begin
   end;
 
   for i:=0 to High(Objects) do
-    if Length(Objects[i].TPA) > 0 then
+    if (Objects[i].typ = self[0].typ) then
     begin
-      j := Length(MMObjList);
-      SetLength(MMObjList, j+1);
-      MMObjList[j].typ := Objects[i].typ;
-      MMObjList[j].points := Copy(objects[i].TPA);
-      if (Objects[i].typ = self[0].typ) then
-        candidates := objects[i];
+      candidates := objects[i].TPA;
+      break;
     end;
 
-  for i:=0 to High(candidates.TPA) do
+
+  for i:=0 to High(candidates) do
   begin
     //assumed mainPoint
-    mp := candidates.TPA[i];
+    mp := candidates[i];
 
     //grab inital points to start of
     dist1  := pts[0].R;
