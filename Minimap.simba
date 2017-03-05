@@ -56,7 +56,8 @@ begin
   for i:=0 to 3 do
     if (FindColorsTolerance(TPA, Obj.Color, x1, y1, x2, y2, Obj.Tol+i)) then
       Break;
-  //FilterPointsPie(TPA, 0,360, 0, Radius, cX, cY);
+
+  //FilterPointsDist(TPA, 0,Radius, cX, cY);
   Minimap.FilterPointsFix(TPA);
 
   SetToleranceSpeed2Modifiers(CTS2Modifiers[0], CTS2Modifiers[1]);

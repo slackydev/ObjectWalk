@@ -1,5 +1,4 @@
 {$include_once SRL/OSR.simba}
-{$include_once SRL/utils/slacktree.simba}
 {$I minimap.simba}
 {==============================================================================]
  Note:
@@ -85,27 +84,40 @@ type
   end;
   TTree = record
     typ:EMinimapObject;
-    tree:TSlackTree;
+    points:TPointArray;
   end;
 var
-  treeList:array of TTree;
-  tree:TSlackTree;
+  MMObjList:array of TTree;
   i,j,k:Int32;
   dist1,dist2,angle1,angle2,newA,newD,offset,scale:Double;
   pts:array of TNode;
   candidates: TMMObjects;
-  tmp,path:TPointArray;
+  TPA,tmp,path:TPointArray;
   mp,pt,newPt:TPoint;
 
-  function FindTree(typ:EMinimapObject; out tree: TSlackTree): Boolean;
+  function GetObjectPoints(typ:EMinimapObject; out points: TPointArray): Boolean;
   var i:Int32;
   begin
-    for i:=0 to High(treeList) do
-      if treeList[i].typ = typ then
+    for i:=0 to High(MMObjList) do
+      if MMObjList[i].typ = typ then
       begin
-        tree := treeList[i].Tree;
+        points := Copy(MMObjList[i].points);
         Result := True;
       end;
+  end;
+
+  function Nearest(TPA:TPointArray; p:TPoint): TPoint;
+  var q:TPoint; d,h:Double = 9999999;
+  begin
+    for q in TPA do
+    begin
+      h := Hypot(q.x-p.x,q.y-p.y);
+      if h < d then
+      begin
+        d := h;
+        Result := q;
+      end;
+    end;
   end;
 begin
   radius := Radians(radius+3);
@@ -125,12 +137,12 @@ begin
   for i:=0 to High(Objects) do
     if Length(Objects[i].TPA) > 0 then
     begin
-      j := Length(TreeList);
-      SetLength(TreeList, j+1);
-      TreeList[j].typ := Objects[i].typ;
-      TreeList[j].tree.Init(Objects[i].TPA);
+      j := Length(MMObjList);
+      SetLength(MMObjList, j+1);
+      MMObjList[j].typ := Objects[i].typ;
+      MMObjList[j].points := Copy(objects[i].TPA);
       if (Objects[i].typ = self[0].typ) then
-        candidates := Objects[i];
+        candidates := objects[i];
     end;
 
   for i:=0 to High(candidates.TPA) do
@@ -142,26 +154,26 @@ begin
     dist1  := pts[0].R;
     angle1 := pts[0].T;
 
-    if not FindTree(pts[0].typ, tree) then Exit();
-    tmp := tree.RangeQueryEx(mp, dist1*1/sm,dist1*1/sm, dist1*sm,dist1*sm, False);
+    if not GetObjectPoints(pts[0].typ, TPA) then Exit();
+    FilterPointsDist(TPA, dist1*1/sm, dist1*sm, mp.x,mp.y);
 
     //loop init
     SetLength(path, 2);
     path[0] := mp;
 
-    for k:=0 to High(tmp) do //all of these are point[1] candidates
+    for k:=0 to High(TPA) do //all of these are point[1] candidates
     begin
-      tmp[k].Offset(Point(-mp.x,-mp.y)); //zero based.
+      TPA[k].Offset(Point(-mp.x,-mp.y)); //zero based.
 
-      dist2 := Hypot(tmp[k].x,tmp[k].y);
+      dist2 := Hypot(TPA[k].x,TPA[k].y);
       scale := 1+(dist2-dist1) / dist1;
-      angle2 := ArcTan2(tmp[k].y, tmp[k].x);
+      angle2 := ArcTan2(TPA[k].y, TPA[k].x);
       offset := srl.DeltaAngle(angle2,angle1,PI*2);
 
       if (Abs(-PI+offset) > radius) and (Abs(+PI+offset) > radius) then
         continue;
 
-      path[1] := tmp[k];
+      path[1] := TPA[k];
       path[1].Offset(mp);
 
       for j:=1 to High(pts) do
@@ -171,12 +183,14 @@ begin
         newD := pts[j].R * scale;
         newPt := Point(mp.x+Round(newD * Cos(newA)), mp.y+Round(newD * Sin(newA)));
 
-        //lookup hte nearest point to that location:
-        if not FindTree(pts[j].typ, tree) then Exit();
-        pt := tree.Nearest(newPt);
+        //lookup the nearest point to that location:
+        if not GetObjectPoints(pts[j].typ, tmp) then Exit();
+        pt := Nearest(tmp, newPt);
 
         if Hypot(pt.x-newPt.x, pt.y-newPt.y) < eps then
-          path += pt;
+          path += pt
+        else
+          break;
       end;
 
       if Length(path) = Length(self) then

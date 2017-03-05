@@ -20,8 +20,10 @@ var
   colors:TIntegerArray;
   path:TMMPath;
   bmp:TMufasaBitmap;
-
   DTM:TMMDTM;
+
+  d:Double;
+  t:TDateTime;
 begin
   Init();
 
@@ -29,15 +31,20 @@ begin
   if not DEBUG_POINTS then
   begin
     Walker.Init();
-    Walker.Debugging := True;
+    Walker.Debugging := False;
+    (*
+    DTM := [[mmTree, 585, 68],[mmRed, 655, 122],[mmRed, 634, 129]];
+    Walker.DebugDTM([620, 133], DTM, smart.Image);
 
-    //DTM := [[mmTree, 585, 68],[mmRed, 655, 122],[mmRed, 634, 129]];
-    //Walker.DebugFindDTM([620, 133], DTM, smart.Image);
+    t := Now();
+    d := Walker.DistanceTo([620, 133], DTM);
+    WriteLn('Used ', FormatDateTime('z',Now() - t),'ms | distance: ', d);
+    *)
 
     SetLength(Path, 5);
 
     path[0].Features := [[mmTree, 585, 68],[mmRed, 655, 122],[mmRed, 634, 129]];
-    path[0].Points := [[620,86], [620, 133]];
+    path[0].Points := [[620,86], [616, 133]];
 
     path[1].Features := [[mmLadder, 661, 102],[mmLadder, 589, 92],[mmRed, 666, 118]];
     path[1].Points := [[642,137]];
