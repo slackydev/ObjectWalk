@@ -1,6 +1,8 @@
 program test;
 {$hints off}
 {$define SMART}
+{$define OW:SMARTDEBUG}
+
 {$I SRL/OSR.simba}
 {$I ObjectWalk/Walker.simba}
 
@@ -31,7 +33,7 @@ begin
   if not DEBUG_POINTS then
   begin
     Walker.Init();
-    Walker.Debugging := False;
+
     (*
     DTM := [[mmTree, 585, 68],[mmRed, 655, 122],[mmRed, 634, 129]];
     Walker.DebugDTM([620, 133], DTM, smart.Image);
@@ -66,11 +68,10 @@ begin
     while True do
     begin
       Walker.DebugMinimap(smart.Image);
-      Smart.Image.DrawTPA(TPAFromCircle(642,84, 63), 1118740);
+      //Smart.Image.DrawTPA(TPAFromCircle(642,84, 63), 1118740);
       //bmp := GetMufasaBitmap(BitmapFromClient(Minimap.GetBounds()));
       //Walker.DebugMinimap(bmp, [-Minimap.GetBounds().x1,-Minimap.GetBounds().y1]);
       //bmp.Debug();
-      Wait(40);
       //bmp.Free();
     end;
 

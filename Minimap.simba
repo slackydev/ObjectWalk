@@ -7,9 +7,9 @@ type
   );
 
   MMObjDef = record
-    Color, CTS, Tol: Int32;
+    Colors:TIntegerArray;
+    Tol: Int32;
     SplitX, SplitY: Int32;
-    SatMod, HueMod: Extended;
     AvgNumOfPoints, AvgTol: Int32;
   end;
 
@@ -30,63 +30,65 @@ const
 procedure TMinimap.FilterPointsFix(var TPA:TPointArray);
 var
   tmp:TPointArray;
-  i:Int32;
+  i,c:Int32;
 begin
+  SetLength(tmp, Length(TPA));
   for i:=0 to High(TPA) do
     if srl.PointInPoly(TPA[i], MINIMAP_POLYGON) then
-      tmp += TPA[i];
+      tmp[Inc(c)-1] := TPA[i];
   TPA := tmp;
+  SetLength(TPA, c);
 end;
 
 
 //inspired by function in ObjectDTM (by euph..)
-function TMinimap.FindObjEx(Obj:MMObjDef; x1,y1,x2,y2:Int32; cX,cY,Radius:Int32): TPointArray;
+function TMinimap.FindObjEx(Obj:MMObjDef; x1,y1,x2,y2:Int32): TPointArray;
 var
-  CTS,i,avgN,lo,hi: Integer;
-  CTS2Modifiers: array [0..1] of Extended;
-  TPA: TPointArray;
+  i,avgN,lo,hi,color: Integer;
+  ATPA: T2DPointArray;
+  TPA,TmpRes: TPointArray;
   mid: TPoint;
 begin
-  CTS := GetToleranceSpeed();
-  SetColorToleranceSpeed(Obj.CTS);
+  SetLength(ATPA, Length(Obj.Colors));
 
-  GetToleranceSpeed2Modifiers(CTS2Modifiers[0], CTS2Modifiers[1]);
-  SetToleranceSpeed2Modifiers(Obj.HueMod, Obj.SatMod);
-
-  for i:=0 to 3 do
-    if (FindColorsTolerance(TPA, Obj.Color, x1, y1, x2, y2, Obj.Tol+i)) then
-      Break;
-
-  //FilterPointsDist(TPA, 0,Radius, cX, cY);
-  Minimap.FilterPointsFix(TPA);
-
-  SetToleranceSpeed2Modifiers(CTS2Modifiers[0], CTS2Modifiers[1]);
-  SetColorToleranceSpeed(CTS);
+  for i:=0 to High(Obj.Colors) do
+    FindColorsTolerance(ATPA[i], Obj.Colors[i], x1, y1, x2, y2, Obj.Tol);
 
   avgN := Obj.AvgNumOfPoints;
-  for TPA in ClusterTPAEx(TPA, Obj.SplitX, Obj.SplitY) do
-  begin
-    mid := MiddleTPA(TPA);
-
-    if InRange(Length(TPA), avgN - Obj.AvgTol, avgN + Obj.AvgTol) then
-      Result += mid
-    else
+  for i:=0 to High(ATPA) do
+    for TPA in ClusterTPAEx(ATPA[i], Obj.SplitX, Obj.SplitY) do
     begin
-      if (Distance(cX, cY, mid.X, mid.Y) > Radius - 2) then
-      begin
-        lo := Round((avgN / 2) - ((Obj.AvgTol / 3) * 2));
-        hi := Round((avgN / 2) - ((Obj.AvgTol / 3) * 2));
-        if InRange(Length(TPA), lo, hi) then
-          Result += mid;
-      end;
+      mid := MiddleTPA(TPA);
+      if InRange(Length(TPA), avgN - Obj.AvgTol, avgN + Obj.AvgTol) and
+         srl.PointInPoly(mid, MINIMAP_POLYGON) then
+        TmpRes += mid
     end;
-  end;
+
+  //clearning duplicates and neighbouring points by simply merging them into 1
+  for TPA in ClusterTPA(TmpRes, 2) do Result += MiddleTPA(TPA);
 end;
 
 
 function TMinimap.FindObj(Obj: MMObjDef): TPointArray;
-begin                //       MM area      Mid   Rad
-  Result := FindObjEx(Obj, 570,9,714,159, 642,84, 71);
+begin                //       MM area
+  Result := FindObjEx(Obj, 570,9,714,159);
+end;
+
+
+function UniqueColors(colors:TIntegerArray; Tolerance:Int32=5): TIntegerArray;
+var i,j:Int32;
+begin
+  for i:=0 to High(colors) do
+  begin
+    for j:=0 to High(colors) do
+    begin
+      if i = j then continue;
+      if SimilarColors(colors[i],colors[j], tolerance) then
+        Break;
+    end;
+    if j = Length(colors) then
+      Result += colors[i];
+  end;
 end;
 
 
@@ -101,15 +103,16 @@ begin
   {colors: 1717603,1783655,6976,6993,865128}
   with MMObjRecords[mmLadder] do
   begin
-    Color := 928084; CTS := 1; Tol := 30;
+    Colors := [928084];
+    Tol := 30;
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 32; AvgTol := 19;
   end;
 
-  {colors: 602944,271914,1391694,140343,2310221}
   with MMObjRecords[mmTree] do
   begin
-    Color := 1258044; CTS := 1; Tol := 30; //stem
+    Colors := UniqueColors([1258044,7983,602944,271914,1391694,140343,2310221]);
+    Tol := 30; //stem
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 7; AvgTol := 6;
   end;
@@ -117,22 +120,24 @@ begin
   {colors: 2305857,6452,1387330,267550}
   with MMObjRecords[mmDeadTree] do
   begin
-    Color := 1188400; CTS := 1; Tol := 30;
+    Colors := [1188400];
+    Tol := 30;
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 20; AvgTol := 8;
   end;
 
-  {colors: 137352,2633365,463487}
   with MMObjRecords[mmPalmTree] do
   begin
-    Color := 1384586; CTS := 1; Tol := 30;
+    Colors := UniqueColors([1384586,3445,137352,2633365,463487]);
+    Tol := 21;
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 4; AvgTol := 3;
   end;
 
   with MMObjRecords[mmFlax] do
   begin
-    Color := 9398872; CTS := 1; Tol := 1; //not tweaked
+    Colors := [9398872];
+    Tol := 1; //not tweaked
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 6; AvgTol := 3;
   end;
@@ -140,14 +145,16 @@ begin
   //3757702, 1920118, 3890578
   with MMObjRecords[mmBoulder] do
   begin
-    Color := 2905476; CTS := 1; Tol := 30; //partially tweaked
+    Colors := [2905476];
+    Tol := 30; //partially tweaked
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 37; AvgTol := 18;
   end;
 
   with MMObjRecords[mmHenge] do
   begin
-    Color := 4409670; CTS := 1; Tol := 1; //not tweaked
+    Colors := [4409670];
+    Tol := 1; //not tweaked
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 9; AvgTol := 6;
   end;
@@ -155,14 +162,16 @@ begin
   //5013585
   with MMObjRecords[mmCactus] do
   begin
-    Color := 5013585; CTS := 1; Tol := 30;
+    Colors := [5013585];
+    Tol := 30;
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 80; AvgTol := 50;
   end;
 
   with MMObjRecords[mmMaple] do
   begin
-    Color := 999524; CTS := 1; Tol := 1; //not tweaked
+    Colors := [999524];
+    Tol := 1; //not tweaked
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 17; AvgTol := 5;
   end;
@@ -170,14 +179,16 @@ begin
   {colors: 5923680,7429746,7365990,4869977,7365990}
   with MMObjRecords[mmRock] do
   begin
-    Color := 6183526; CTS := 1; Tol := 30;
+    Colors := UniqueColors([5923680,7429746,7365990,4869977,7365990,3884104]);
+    Tol := 21;
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 34; AvgTol := 18;
   end;
 
   with MMObjRecords[mmRed] do
   begin
-    Color := 240; CTS := 1; Tol := 22;
+    Colors := [240];
+    Tol := 22;
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 8; AvgTol := 6;
   end;

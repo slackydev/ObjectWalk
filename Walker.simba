@@ -8,6 +8,12 @@
    Over time there might come several changes, mainly for the better.
 
    (I know the record names are a mess)
+
+   Debug defines:
+     OW:DEBUG       -> Nothing atm..
+     OW:DEBUG_WORDY -> Will write some text, for example if it can't find a DTM
+     OW:SMARTDEBUG  -> Will draw to the smartimage.
+     OW:DEBUG_TIMES -> Will write some timings..
 [==============================================================================}
 type
   TFeaturePoint = record
@@ -36,7 +42,6 @@ type
   TObjectWalk = record
     Types: TIntegerArray;
     MaxOffset, MaxInaccuracy, MaxScale: Double;
-    Debugging: Boolean;
   end;
 
   TLine = record p,q:TPoint; end;
@@ -164,8 +169,7 @@ begin
       if (Abs(-PI+offset) > radius) and (Abs(+PI+offset) > radius) then
         continue;
 
-      path[1] := TPA[k];
-      path[1].Offset(mp);
+      path[1] := TPA[k] + mp;
 
       for j:=1 to High(pts) do
       begin
@@ -208,22 +212,23 @@ var
 begin
   for i:=0 to High(self) do
   begin
-    if test.Find(Ord(self[i].typ)) >= 0 then
-      Continue;
-    MMObjects += TMMObjects([self[i].typ, Minimap.FindObj(MMObjRecords[self[i].typ])]);
+    if test.Find(Ord(self[i].typ)) >= 0 then Continue;
     test += Ord(self[i].typ);
   end;
+
+  for i in Test do
+    MMObjects += TMMObjects([EMinimapObject(i), Minimap.FindObj(MMObjRecords[i])]);
+
   Result := self.FindEx(MMObjects, radius,sm,eps);
 end;
 
 
 //So.. yeah.. we like initalizers.. :)
-procedure TObjectWalk.Init(SmartDebug:Boolean=False);
+procedure TObjectWalk.Init();
 var
   i,j: Int32;
   mp:TPoint;
 begin
-  self.Debugging := SmartDebug;  //
   self.MaxOffset := 15;          //How much the minimap can offset in relation to the compass.
   self.MaxInaccuracy := 2.7;     //With rotation, slightly inaccurate object finding and other defomities, we need to allow a little inaccuracy.
   self.MaxScale := 1.13;         //minimap scales, from 0.95 to 1.05 (10%), so we allow 13% scaling of our feature points (3% more than what can be, to be on the safeside).
@@ -286,7 +291,7 @@ begin
   Result := Point(Round(mp.x + p.r * Cos(p.t)), Round(mp.y + p.r * Sin(p.t)));
 end;
 
-function TObjectWalk.FindDTM(out Res:TFoundFeatures; DTM:TMMDTM; MaxTime:Int32=6000): Boolean; constref;
+function TObjectWalk.FindDTM(out Res:TFoundFeatures; DTM:TMMDTM; MaxTime:Int32=3500): Boolean; constref;
 var
   t:Int64;
 begin
@@ -314,7 +319,8 @@ begin
   Goal.x -= DTM[0].x;
   Goal.y -= DTM[0].y;
   me := minimap.Center;
-  F := DTM.RotateToCompass().Find(self.MaxOffset, self.MaxScale, self.MaxInaccuracy);
+  if not self.FindDTM(F, DTM) then
+    Exit(-1);
 
   other := self.GetPoint(Goal, F.arr[0], F.theta, F.scale);
   Result := Hypot(me.x-other.x, me.y-other.y);
@@ -324,11 +330,23 @@ end;
   Yeah.. this one is supersimple, with no random at all (this is a prototype after all).
 *)
 
-procedure TObjectWalk.WalkTo(pt:TPoint); constref;
+procedure TObjectWalk.WalkTo(pt:TPoint{$IFDEF OW:SMARTDEBUG}; step:TPoint; DTM:TMMDTM{$ENDIF}); constref;
 begin
+  {$IFDEF OW:SMARTDEBUG}self.DebugDTM(step, DTM, Smart.Image);{$ENDIF}
   Mouse.Click(pt,1);
   while self.IsFlagPresent() do
-    Wait(70);
+  begin
+    {$IFDEF OW:SMARTDEBUG}
+      self.DebugDTM(step, DTM, Smart.Image);
+      Wait(7);
+    {$ELSE}
+      Wait(70);
+    {$ENDIF}
+  end;
+
+  {$IFDEF OW:SMARTDEBUG}
+    smart.Image.DrawClear(0);
+  {$ENDIF}
 end;
 
 (*
@@ -344,17 +362,14 @@ begin
   begin
     for step in Path[i].Points do
     begin
-      {$IFDEF SMART}
-      if self.Debugging then
-      begin
-        self.DebugDTM(step, Path[i].Features, smart.Image);
-        Wait(100);
-      end;
+      {$IFDEF OW:SMARTDEBUG}
+        if not self.DebugDTM(step, Path[i].Features, Smart.Image) then
+          Smart.Image.DrawClear(0);
       {$ENDIF}
 
       if not self.FindDTM(F,Path[i].Features) then
       begin
-        WriteLn('Warning: Unable to find DTM ', i);
+        {$IFDEF OW:DEBUG_WORDY}WriteLn('Warning: Unable to find DTM ', i);{$ENDIF}
         Exit(False);
       end;
 
@@ -362,11 +377,11 @@ begin
       pt.y := step.y - Path[i].Features[0].y;
       pt := self.GetPoint(pt, F.arr[0], F.theta, F.scale);
 
-      {$IFDEF SMART}
-      if self.Debugging then smart.Image.DrawClear(0);
+      {$IFDEF OW:SMARTDEBUG}
+        Smart.Image.DrawClear(0);
       {$ENDIF}
 
-      self.WalkTo(pt);
+      self.WalkTo(pt{$IFDEF OW:SMARTDEBUG},step,Path[i].Features{$ENDIF});
     end;
   end;
   Result := True;
@@ -383,10 +398,14 @@ var
   color,i:Int32;
   pt:TPoint;
   b:TBox;
+  {$IFDEF OW:DEBUG_TIMES} t:TDateTime;{$ENDIF}
 begin
-  SetLength(objects, 0);
   for i:=0 to High(MMObjRecords) do
+  begin
+    {$IFDEF OW:DEBUG_TIMES}t := Now();{$ENDIF}
     objects += Minimap.FindObj(MMObjRecords[i]);
+    {$IFDEF OW:DEBUG_TIMES}WriteLn('Finding ', EMinimapObject(i), ' used: ', FormatDateTime('z', Now()-t),'ms');{$ENDIF}
+  end;
 
   if Clear then im.DrawClear(0);
   for i:=0 to High(objects) do
@@ -402,35 +421,44 @@ begin
 end;
 
 
-procedure TObjectWalk.DebugDTM(Goal:TPoint; DTM:TMMDTM; im:TMufasaBitmap; offset:TPoint=[0,0]; Clear:Boolean=True); constref;
+function TObjectWalk.DebugDTM(Goal:TPoint; DTM:TMMDTM; im:TMufasaBitmap; offset:TPoint=[0,0]; Clear:Boolean=True): Boolean; constref;
 var
   F:TFoundFeatures;
-  found:TPoint;
+  line:TPointArray;
+  found,p,q:TPoint;
   i,color:Int32;
 begin
+  Result := True;
   Goal.x -= DTM[0].x;
   Goal.y -= DTM[0].y;
 
-  F := DTM.RotateToCompass().Find(self.MaxOffset, self.MaxScale, self.MaxInaccuracy);
-  if F.arr = [] then
+  if not self.FindDTM(F, DTM) then
   begin
-    WriteLn('Unable to find DTM!');
-    Exit;
+    {$IFDEF OW:DEBUG_WORDY}WriteLn('Unable to find DTM!');{$ENDIF}
+    Exit(False);
   end;
+
   found := self.GetPoint(Goal, F.arr[0], F.theta, F.scale);
+  found.Offset(offset);
   if Clear then im.DrawClear(0);
 
-  Im.SetPixel(offset.x+found.x, offset.y+found.y, $FFFFFF);
-  Im.DrawTPA(TPAFromCircle(offset.x+found.x, offset.y+found.y, 4), COLOR_LIST16[0]);
+  Im.DrawTPA(TPAFromBox(Box(found.x-1, found.y-1,found.x+1, found.y+1)), COLOR_LIST16[0]);
+  line := TPAFromLine(found.x, found.y, Minimap.Center.x, Minimap.Center.y);
+  for i:=3 to High(line)-1 with 4 do
+  begin
+    Im.SetPixel(line[i+0].x, line[i+0].y, $FFFFFF);
+    Im.SetPixel(line[i+1].x, line[i+1].y, $FFFFFF);
+  end;
 
   for i:=0 to High(F.arr) do
   begin
+    p := F.arr[i] + offset;
     color := COLOR_LIST16[(i+1) mod 16];
-    Im.SetPixel(offset.x+F.arr[i].x, offset.y+F.arr[i].y, $FFFFFF);
     try
-    Im.DrawTPA(TPAFromCircle(offset.x+F.arr[i].x, offset.y+F.arr[i].y, 4), color);
+    Im.DrawTPA(TPAFromBox(Box(p.x-1, p.y-1,p.x+1,p.y+1)), color);
     except
     end;
+    Im.DrawTPA(TPAFromLine(p.x,p.y,Minimap.Center.x,Minimap.Center.y), $999999);
   end;
 end;
 
