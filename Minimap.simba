@@ -112,7 +112,7 @@ begin
   with MMObjRecords[mmTree] do
   begin
     Colors := UniqueColors([1258044,7983,602944,271914,1391694,140343,2310221]);
-    Tol := 30; //stem
+    Tol := 21; //stem
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 7; AvgTol := 6;
   end;
