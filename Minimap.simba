@@ -58,9 +58,10 @@ begin
   for i:=0 to High(ATPA) do
     for TPA in ClusterTPAEx(ATPA[i], Obj.SplitX, Obj.SplitY) do
     begin
+      if not InRange(Length(TPA), avgN - Obj.AvgTol, avgN + Obj.AvgTol) then
+        Continue;
       mid := MiddleTPA(TPA);
-      if InRange(Length(TPA), avgN - Obj.AvgTol, avgN + Obj.AvgTol) and
-         srl.PointInPoly(mid, MINIMAP_POLYGON) then
+      if srl.PointInPoly(mid, MINIMAP_POLYGON) then
         TmpRes += mid
     end;
 
@@ -112,16 +113,15 @@ begin
   with MMObjRecords[mmTree] do
   begin
     Colors := UniqueColors([1258044,7983,602944,271914,1391694,140343,2310221]);
-    Tol := 21; //stem
+    Tol := 20; //stem
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 7; AvgTol := 6;
   end;
 
-  {colors: 2305857,6452,1387330,267550}
   with MMObjRecords[mmDeadTree] do
   begin
-    Colors := [1188400];
-    Tol := 30;
+    Colors := UniqueColors([1188400,2305857,6452,1387330,267550]);
+    Tol := 20;
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 20; AvgTol := 8;
   end;
@@ -129,7 +129,7 @@ begin
   with MMObjRecords[mmPalmTree] do
   begin
     Colors := UniqueColors([1384586,3445,137352,2633365,463487]);
-    Tol := 21;
+    Tol := 20;
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 4; AvgTol := 3;
   end;
