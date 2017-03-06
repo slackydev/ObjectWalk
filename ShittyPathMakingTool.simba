@@ -149,8 +149,8 @@ begin
     path[high(path)].Features := DTM;
     path[high(path)].Points := [goal];
     WriteLn('----------------------------------------');
-    WriteLn('Path[',high(path),'].Features := ', path[high(path)].Features);
-    WriteLn('Path[',high(path),'].Points   := ', path[high(path)].Points);
+    WriteLn('Path[',high(path),'].Features := ', path[high(path)].Features,';');
+    WriteLn('Path[',high(path),'].Points   := ', path[high(path)].Points,';');
     WriteLn('----------------------------------------');
     SetLength(DTM,0);
     Goal := [0,0];
@@ -165,8 +165,8 @@ begin
   WriteLn('SetLength(path, ', Length(path),');');
   for i:=0 to High(path) do
   begin
-    WriteLn('Path[',i,'].Features := ', path[high(path)].Features ,';');
-    WriteLn('Path[',i,'].Points   := ', path[high(path)].Points ,';');
+    WriteLn('Path[',i,'].Features := ', path[i].Features ,';');
+    WriteLn('Path[',i,'].Points   := ', path[i].Points ,';');
   end;
 end;
 

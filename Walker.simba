@@ -282,13 +282,23 @@ end;
   Ugh.. the input points gotta be scaled and rotated in relation to where we found
   the DTM, it's scale, and the minimap-offset-to-compass
 *)
-function TObjectWalk.GetPoint(pt:TPoint; mp:TPoint; theta,scale:Double): TPoint; static;
+function TObjectWalk.AdjustPoint(pt:TPoint; mp:TPoint; theta,scale:Double): TPoint; static;
 var
   p:PPoint;
 begin
   p.R := Hypot(pt.y, pt.x) * scale;
   p.T := ArcTan2(pt.y, pt.x) + (PI + theta + minimap.GetCompassAngle(False));
   Result := Point(Round(mp.x + p.r * Cos(p.t)), Round(mp.y + p.r * Sin(p.t)));
+end;
+
+function TObjectWalk.AdjustBlindPoint(pt:TPoint; theta,scale:Double): TPoint; static;
+var
+  p:PPoint;
+begin
+  pt -= minimap.Center;
+  p.R := Hypot(pt.y, pt.x) * scale;
+  p.T := ArcTan2(pt.y, pt.x) + (PI + theta + minimap.GetCompassAngle(False));
+  Result := Point(Round(minimap.Center.x + p.r * Cos(p.t)), Round(minimap.Center.y + p.r * Sin(p.t)));
 end;
 
 function TObjectWalk.FindDTM(out Res:TFoundFeatures; DTM:TMMDTM; MaxTime:Int32=3500): Boolean; constref;
@@ -322,7 +332,7 @@ begin
   if not self.FindDTM(F, DTM) then
     Exit(-1);
 
-  other := self.GetPoint(Goal, F.arr[0], F.theta, F.scale);
+  other := self.AdjustPoint(Goal, F.arr[0], F.theta, F.scale);
   Result := Hypot(me.x-other.x, me.y-other.y);
 end;
 
@@ -357,33 +367,50 @@ var
   i:Int32;
   step,pt:TPoint;
   F:TFoundFeatures;
+  theta,scale:Double;
 begin
+  theta := 0;
+  scale := 1;
+
   for i:=0 to High(Path) do
-  begin
     for step in Path[i].Points do
     begin
-      {$IFDEF OW:SMARTDEBUG}
-        if not self.DebugDTM(step, Path[i].Features, Smart.Image) then
-          Smart.Image.DrawClear(0);
-      {$ENDIF}
-
-      if not self.FindDTM(F,Path[i].Features) then
+      if Length(Path[i].Features) = 0 then //blind step
       begin
-        {$IFDEF OW:DEBUG_WORDY}WriteLn('Warning: Unable to find DTM ', i);{$ENDIF}
-        Exit(False);
+        pt := self.AdjustBlindPoint(step, theta, scale);
+        self.WalkTo(pt{$IFDEF OW:SMARTDEBUG},step,Path[i].Features{$ENDIF});
+        continue;
       end;
 
-      pt.x := step.x - Path[i].Features[0].x;
-      pt.y := step.y - Path[i].Features[0].y;
-      pt := self.GetPoint(pt, F.arr[0], F.theta, F.scale);
+      for 0 to 19 do
+      begin
+        {$IFDEF OW:SMARTDEBUG}
+          if not self.DebugDTM(step, Path[i].Features, Smart.Image) then
+            Smart.Image.DrawClear(0);
+        {$ENDIF}
 
-      {$IFDEF OW:SMARTDEBUG}
-        Smart.Image.DrawClear(0);
-      {$ENDIF}
+        if not self.FindDTM(F,Path[i].Features) then
+        begin
+          {$IFDEF OW:DEBUG_WORDY}WriteLn('Warning: Unable to find DTM ', i);{$ENDIF}
+          Exit(False);
+        end;
 
+        pt.x := step.x - Path[i].Features[0].x;
+        pt.y := step.y - Path[i].Features[0].y;
+        pt := self.AdjustPoint(pt, F.arr[0], F.theta, F.scale);
+
+        {$IFDEF OW:SMARTDEBUG}
+          Smart.Image.DrawClear(0);
+        {$ENDIF}
+
+        if Distance(Minimap.Center, pt) <= 65 then Break;
+        Wait(50);
+      end;
       self.WalkTo(pt{$IFDEF OW:SMARTDEBUG},step,Path[i].Features{$ENDIF});
+
+      theta := F.theta;
+      scale := F.scale;
     end;
-  end;
   Result := True;
 end;
 
@@ -432,6 +459,7 @@ var
   found,p,q:TPoint;
   i,color:Int32;
 begin
+  if Length(DTM) = 0 then Exit();
   Result := True;
   Goal.x -= DTM[0].x;
   Goal.y -= DTM[0].y;
@@ -442,7 +470,7 @@ begin
     Exit(False);
   end;
 
-  found := self.GetPoint(Goal, F.arr[0], F.theta, F.scale);
+  found := self.AdjustPoint(Goal, F.arr[0], F.theta, F.scale);
   found.Offset(offset);
   if Clear and (offset = [0,0]) then im.DrawTPA(__MMMask__, 0);
 
