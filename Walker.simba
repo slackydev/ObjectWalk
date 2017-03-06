@@ -369,7 +369,7 @@ var
   F:TFoundFeatures;
   theta,scale:Double;
 begin
-  theta := 0;
+  theta := PI;
   scale := 1;
 
   for i:=0 to High(Path) do
