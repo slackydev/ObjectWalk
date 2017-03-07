@@ -120,7 +120,7 @@ begin
 
   with MMObjRecords[mmDeadTree] do
   begin
-    Colors := UniqueColors([1188400,2305857,6452,1387330,267550]);
+    Colors := UniqueColors([2346,1188400,2305857,6452,1387330,267550]);
     Tol := 20;
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 20; AvgTol := 8;
@@ -180,7 +180,7 @@ begin
   with MMObjRecords[mmRock] do
   begin
     Colors := UniqueColors([5923680,7429746,7365990,4869977,7365990,3884104]);
-    Tol := 21;
+    Tol := 20;
     SplitX := 1; SplitY := 1;
     AvgNumOfPoints := 34; AvgTol := 18;
   end;

@@ -343,8 +343,9 @@ end;
 procedure TObjectWalk.WalkTo(pt:TPoint{$IFDEF OW:SMARTDEBUG}; step:TPoint; DTM:TMMDTM{$ENDIF}); constref;
 begin
   {$IFDEF OW:SMARTDEBUG}self.DebugDTM(step, DTM, Smart.Image);{$ENDIF}
-  Mouse.Click(pt,1);
-  while self.IsFlagPresent() do
+  Mouse.Click(pt, 1);
+
+  while self.IsFlagPresent(800) do
   begin
     {$IFDEF OW:SMARTDEBUG}
       self.DebugDTM(step, DTM, Smart.Image);
@@ -364,7 +365,7 @@ end;
 *)
 function TObjectWalk.Walk(Path:TMMPath): Boolean; constref;
 var
-  i:Int32;
+  i,_:Int32;
   step,pt:TPoint;
   F:TFoundFeatures;
   theta,scale:Double;
@@ -378,11 +379,11 @@ begin
       if Length(Path[i].Features) = 0 then //blind step
       begin
         pt := self.AdjustBlindPoint(step, theta, scale);
-        self.WalkTo(pt{$IFDEF OW:SMARTDEBUG},step,Path[i].Features{$ENDIF});
+        self.WalkTo(pt.Random(4,4){$IFDEF OW:SMARTDEBUG},step,Path[i].Features{$ENDIF});
         continue;
       end;
 
-      for 0 to 19 do
+      for _:=0 to 19 do
       begin
         {$IFDEF OW:SMARTDEBUG}
           if not self.DebugDTM(step, Path[i].Features, Smart.Image) then
@@ -403,9 +404,15 @@ begin
           Smart.Image.DrawClear(0);
         {$ENDIF}
 
-        if Distance(Minimap.Center, pt) <= 65 then Break;
+        if srl.PointInPoly(pt, MINIMAP_POLYGON) then Break;
         Wait(50);
       end;
+      if not srl.PointInPoly(pt, MINIMAP_POLYGON) then
+      begin
+        {$IFDEF OW:DEBUG_WORDY}WriteLn('Warning: Point out of Range ', pt);{$ENDIF}
+        Exit(False);
+      end;
+
       self.WalkTo(pt{$IFDEF OW:SMARTDEBUG},step,Path[i].Features{$ENDIF});
 
       theta := F.theta;
