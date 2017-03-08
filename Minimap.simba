@@ -42,7 +42,7 @@ end;
 
 
 //inspired by function in ObjectDTM (by euph..)
-function TMinimap.FindObjEx(Obj:MMObjDef; x1,y1,x2,y2:Int32): TPointArray;
+function TMinimap.FindObjEx(Obj:MMObjDef; Bounds:TBox; OnMinimap:Boolean=True): TPointArray;
 var
   i,avgN,lo,hi,color: Integer;
   ATPA: T2DPointArray;
@@ -52,7 +52,7 @@ begin
   SetLength(ATPA, Length(Obj.Colors));
 
   for i:=0 to High(Obj.Colors) do
-    FindColorsTolerance(ATPA[i], Obj.Colors[i], x1, y1, x2, y2, Obj.Tol);
+    FindColorsTolerance(ATPA[i], Obj.Colors[i], Bounds.x1, Bounds.y1, Bounds.x2, Bounds.y2, Obj.Tol);
 
   avgN := Obj.AvgNumOfPoints;
   for i:=0 to High(ATPA) do
@@ -61,8 +61,10 @@ begin
       if not InRange(Length(TPA), avgN - Obj.AvgTol, avgN + Obj.AvgTol) then
         Continue;
       mid := MiddleTPA(TPA);
-      if srl.PointInPoly(mid, MINIMAP_POLYGON) then
+      if OnMinimap and srl.PointInPoly(mid, MINIMAP_POLYGON) then
         TmpRes += mid
+      else
+        TmpRes += mid;
     end;
 
   //clearning duplicates and neighbouring points by simply merging them into 1
@@ -72,7 +74,7 @@ end;
 
 function TMinimap.FindObj(Obj: MMObjDef): TPointArray;
 begin                //       MM area
-  Result := FindObjEx(Obj, 570,9,714,159);
+  Result := FindObjEx(Obj, [570,9,714,159]);
 end;
 
 
@@ -112,8 +114,8 @@ begin
 
   with MMObjRecords[mmTree] do
   begin
-    Colors := UniqueColors([1258044,7983,602944,271914,1391694,140343,2310221]);
-    Tol := 20; //stem
+    Colors := UniqueColors([1258044,7983,602944,271914,1391694,140343,2310221,933949]);
+    Tol := 18; //stem
     SplitX := 2; SplitY := 2;
     AvgNumOfPoints := 7; AvgTol := 6;
   end;
