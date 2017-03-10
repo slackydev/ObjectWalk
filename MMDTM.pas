@@ -62,25 +62,26 @@ end;
   This is our magic friend that made it all possible. It's where it all started.
 
   Note to self:
-    We can return many results, and sort them from the "expected" location when
-    walking, this should make walking pretty much flawless, even tho duplicates exists.
+    Can we return many results, and sort them from the "expected" location when
+    walking? this should make walking pretty much flawless, even tho duplicates exists.
 
     For anything else, we'd just use the first result, and assume the user has
     defined enough objects to never return duplicates.
 *)
-function TMMDTM.FindEx(Objects:TMMObjectsArray; radius:Double=180; sm:Double=1.15; eps:Double=3): TMMDTMResult; constref;
+function TMMDTM.FindEx(Objects:TMMObjectsArray; MaxAngle:Double=180; MaxScale:Double=1.15; MaxEps:Double=3): TMMDTMResultArray; constref;
 type
   TNode = record
     typ:EMinimapObject;
     R,T:Double;
   end;
 var
-  i,j,k:Int32;
-  dist1,dist2,angle1,angle2,newA,newD,offset,scale:Double;
+  i,j,k,reslen:Int32;
+  expectDist, foundDist, expectAngle, foundAngle: Double;
+  newA, newD, offset, scale:Double;
   pts:array of TNode;
-  candidates,TPA,tmp:TPointArray;
+  candidates, TPA, tmp:TPointArray;
   output: TMMDTM;
-  mp,pt,newPt:TPoint;
+  mp, pt, newPt:TPoint;
 
   function GetObjectPoints(typ:EMinimapObject; out points: TPointArray): Boolean;
   var i:Int32;
@@ -110,12 +111,12 @@ begin
   if Length(self) < 2 then
     Exit();
 
-  radius := Radians(radius+3);
+  MaxAngle := Radians(MaxAngle);
 
   for i:=1 to High(self) do
   begin
-    pt.x := self[0].x - self[i].x;
-    pt.y := self[0].y - self[i].y;
+    pt.x := self[i].x - self[0].x;
+    pt.y := self[i].y - self[0].y;
 
     pts += TNode([
       self[i].typ,
@@ -138,31 +139,31 @@ begin
     mp := candidates[i];
 
     //grab inital points to start of
-    dist1  := pts[0].R;
-    angle1 := pts[0].T;
+    expectDist  := pts[0].R;
+    expectAngle := pts[0].T; //this is 1
 
     if not GetObjectPoints(pts[0].typ, TPA) then Exit();
-    FilterPointsDist(TPA, dist1*1/sm, dist1*sm, mp.x,mp.y);
+    FilterPointsDist(TPA, expectDist*1/MaxScale, expectDist*MaxScale, mp.x,mp.y);
 
     //loop init
     SetLength(output, 2);
     output[0] := mp;
-    output[0].typ := pts[0].typ;
+    output[0].typ := self[0].typ;
 
     for k:=0 to High(TPA) do //all of these are point[1] candidates
     begin
       TPA[k].Offset(Point(-mp.x,-mp.y)); //points are relative to mp.
 
-      dist2 := Hypot(TPA[k].x,TPA[k].y);
-      scale := 1+(dist2-dist1) / dist1;
-      angle2 := ArcTan2(TPA[k].y, TPA[k].x);
-      offset := srl.DeltaAngle(angle2,angle1,PI*2);
+      foundDist := Hypot(TPA[k].x,TPA[k].y);
+      scale := 1+(foundDist-expectDist) / expectDist;
+      foundAngle := ArcTan2(TPA[k].y, TPA[k].x);
+      offset := srl.DeltaAngle(foundAngle, expectAngle, PI*2);
 
-      if (Abs(-PI+offset) > radius) and (Abs(+PI+offset) > radius) then
+      if Abs(offset) > MaxAngle then
         continue;
 
       output[1] := TPA[k] + mp;
-      output[1].typ := pts[1].typ;
+      output[1].typ := self[1].typ; //this is 2
 
       for j:=1 to High(pts) do
       begin
@@ -175,7 +176,7 @@ begin
         if not GetObjectPoints(pts[j].typ, tmp) then Exit();
         pt := Nearest(tmp, newPt);
 
-        if Hypot(pt.x-newPt.x, pt.y-newPt.y) < eps then
+        if Hypot(pt.x-newPt.x, pt.y-newPt.y) < MaxEps then
           output += TMMDTMPoint([pts[j].typ, pt.x,pt.y])
         else
           break;
@@ -183,22 +184,49 @@ begin
 
       if Length(output) = Length(self) then
       begin
-        Result.DTM   := output;
-        Result.scale := scale;
-        Result.theta := offset;
-        Exit();
+        reslen := Length(result);
+        SetLength(Result, reslen+1);
+        Result[reslen].DTM   := output;
+        Result[reslen].scale := scale;
+        Result[reslen].theta := offset;
       end;
-
-      //SetLength(output, 2);
+      
+      SetLength(output, 2);
     end;
   end;
 end;
 
 (*
-  This is the function above, just does ous the favor of finding minimap objects
-  first. It will only look for the objects that is used in the "DTM" (TMMDTM)
+  This is the function above, just does us the favor of finding minimap objects first. 
+  It will only look for the objects that is used in the "DTM" (TMMDTM)
 *)
-function TMMDTM.Find(radius:Double=180; sm:Double=1.15; eps:Double=3): TMMDTMResult; constref;
+function TMMDTM.Find(var Match:TMMDTMResult; MaxAngle:Double=180; MaxScale:Double=1.15; MaxEps:Double=3): Boolean; constref;
+var
+  i:Int32;
+  test:TIntegerArray;
+  MMObjects:TMMObjectsArray;
+  matches: TMMDTMResultArray;
+begin
+  for i:=0 to High(self) do
+  begin
+    if test.Find(Ord(self[i].typ)) >= 0 then Continue;
+    test += Ord(self[i].typ);
+  end;
+
+  for i in Test do
+    MMObjects += TMMObjects([EMinimapObject(i), Minimap.FindObj(MMObjRecords[i])]);
+  
+  matches := self.FindEx(MMObjects, MaxAngle,MaxScale,MaxEps);
+  Result := Length(matches) > 0;
+  if Result then
+    Match := matches[0];
+end;
+
+(*
+  This is the function above, just does us the favor of finding minimap objects first. 
+  It will only look for the objects that is used in the "DTM" (TMMDTM)
+*)
+function TMMDTM.Find(var Matches:TMMDTMResultArray; MaxAngle:Double=180; MaxScale:Double=1.15; MaxEps:Double=3): Boolean; constref; overload;
 var
   i:Int32;
   test:TIntegerArray;
@@ -212,6 +240,7 @@ begin
 
   for i in Test do
     MMObjects += TMMObjects([EMinimapObject(i), Minimap.FindObj(MMObjRecords[i])]);
-
-  Result := self.FindEx(MMObjects, radius,sm,eps);
+  
+  Matches := self.FindEx(MMObjects, MaxAngle,MaxScale,MaxEps);
+  Result := Length(matches) > 0;
 end;

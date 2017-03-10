@@ -1,0 +1,30 @@
+program test;
+{$hints off}
+{$define SMART}
+{$define OW:SMARTDEBUG}
+{$define OW:DEBUG_WORDY}
+{$I SRL/OSR.simba}
+{$I ObjectWalk/Walker.simba}
+
+var
+  Walker: TObjectWalk;
+
+procedure Init();
+begin
+  srl.Debugging := False;
+  Smart.EnableDrawing := True;
+  Smart.JavaPath := 'D:\Java7-32\bin\javaw.exe';
+  Smart.Init();
+end;
+
+
+begin
+  Init();
+
+  while True do
+  begin
+    Walker.Init();
+    Walker.DebugDTM([614,79], [[mmTree,656,49],[mmRock,596,78],[mmTree,651,84]], Smart.Image);
+    Wait(65);
+  end;
+end.
