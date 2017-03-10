@@ -1,5 +1,9 @@
-{$include_once SRL/OSR.simba}
-
+{==============================================================================]
+  Author: Jarl K. Holta
+  Project: ObjectWalk
+  Project URL: https://github.com/WarPie/ObjectWalk
+  License: GNU LGPL (https://www.gnu.org/licenses/lgpl-3.0.en.html)
+[==============================================================================}
 type
   EMinimapObject = (
     mmLadder, mmTree, mmDeadTree, mmPalmTree, mmFlax, mmBoulder, mmHenge,
@@ -25,9 +29,10 @@ const
 
 (*
   Filters points so you only end up with points actually on the minimap..
-  This works unlike the broken shit in SRL/SRL #BlameOlly
+  This works unlike the broken one in SRL/SRL #BlameOlly
+  Note: It's slow.. so, don't use it in any high performance methods.
 *)
-procedure TMinimap.FilterPointsFix(var TPA:TPointArray);
+procedure TMinimap.FilterPointsFix(var TPA:TPointArray); static;
 var
   tmp:TPointArray;
   i,c:Int32;
@@ -42,11 +47,11 @@ end;
 
 
 //inspired by function in ObjectDTM (by euph..)
-function TMinimap.FindObjEx(Obj:MMObjDef; Bounds:TBox; OnMinimap:Boolean=True): TPointArray;
+function TMinimap.FindObjEx(Obj:MMObjDef; Bounds:TBox; OnMinimapCheck:Boolean=True): TPointArray;
 var
-  i,avgN,lo,hi,color: Integer;
-  ATPA: T2DPointArray;
+  i,avgN,lo,hi,color: Int32;
   TPA,TmpRes: TPointArray;
+  ATPA: T2DPointArray;
   mid: TPoint;
 begin
   SetLength(ATPA, Length(Obj.Colors));
@@ -61,9 +66,7 @@ begin
       if not InRange(Length(TPA), avgN - Obj.AvgTol, avgN + Obj.AvgTol) then
         Continue;
       mid := MiddleTPA(TPA);
-      if OnMinimap and srl.PointInPoly(mid, MINIMAP_POLYGON) then
-        TmpRes += mid
-      else
+      if (not OnMinimapCheck) or srl.PointInPoly(mid, MINIMAP_POLYGON) then
         TmpRes += mid;
     end;
 
@@ -79,17 +82,16 @@ end;
 
 
 function UniqueColors(colors:TIntegerArray; Tolerance:Int32=5): TIntegerArray;
-var i,j:Int32;
+var 
+  i,j:Int32;
+  similar:Boolean;
 begin
   for i:=0 to High(colors) do
   begin
-    for j:=0 to High(colors) do
-    begin
-      if i = j then continue;
-      if SimilarColors(colors[i],colors[j], tolerance) then
+    for j:=i+1 to High(colors) do
+      if similar := SimilarColors(colors[i],colors[j], tolerance) then
         Break;
-    end;
-    if j = Length(colors) then
+    if not similar then
       Result += colors[i];
   end;
 end;
@@ -99,6 +101,8 @@ end;
  Based on a function in ObjectDTM (by euph..)
  The object definitions might not work properly, this is a rough sketch.
  The colors comment is what I've used to calibrate tolerances.
+ 
+ The more colors we add the lower tolerance we can use, the more the merrier, up to a point.
 *)
 var
   MMObjRecords: array [EMinimapObject] of MMObjDef;

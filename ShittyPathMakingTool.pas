@@ -1,9 +1,5 @@
-program SmartOverlayThingy;
-{$hints off}
-{$define SMART}
-{$I SRL/OSR.simba}
-{$I ObjectWalk/Walker.simba}
-(*
+program ShittyPathMakingTool;
+{==============================================================================]
   Some stupid tool to generate paths..
   It will have to do for now, it's kind of a bitch to use tho.
 
@@ -26,7 +22,12 @@ program SmartOverlayThingy;
   If you make mistakes, simply press clear to reset that step.
 
   Restart the tool (stop + start the script) to make a new path ^____-
-*)
+[==============================================================================}
+{$hints off}
+{$define SMART}
+{$I SRL/OSR.simba}
+{$I ObjectWalk/Walker.simba}
+
 type
   EButtonType = (btCapture, btClear, btDone, btPrintPath);
 
@@ -145,16 +146,17 @@ procedure FinalizeDTM();
 begin
   if (Goal <> [0,0]) then
   begin
+    Mouse.Click(goal, mouse_Left);
     SetLength(path, Length(path)+1);
-    path[high(path)].Features := DTM;
-    path[high(path)].Points := [goal];
-    WriteLn('----------------------------------------');
-    WriteLn('Path[',high(path),'].Features := ', path[high(path)].Features,';');
-    WriteLn('Path[',high(path),'].Points   := ', path[high(path)].Points,';');
-    WriteLn('----------------------------------------');
+    path[high(path)].Objects := DTM;
+    path[high(path)].Dest    := [goal];
+    WriteLn('---------------------------------------------------------');
+    WriteLn('Path[',high(path),'].Objects := ', path[high(path)].Objects,';');
+    WriteLn('Path[',high(path),'].Dest    := ', path[high(path)].Dest,';');
+    WriteLn('---------------------------------------------------------');
     SetLength(DTM,0);
     Goal := [0,0];
-    isCapturing := False;
+    minimap.WaitFlag();
   end else
     WriteLn('Path is incomplete, select goal by right-clicking where you want to walk');
 end;
@@ -162,11 +164,12 @@ end;
 procedure OutputPath();
 var i:Int32;
 begin
+  ClearDebug();
   WriteLn('SetLength(path, ', Length(path),');');
   for i:=0 to High(path) do
   begin
-    WriteLn('Path[',i,'].Features := ', path[i].Features ,';');
-    WriteLn('Path[',i,'].Points   := ', path[i].Points ,';');
+    WriteLn('Path[',i,'].Objects := ', path[i].Objects ,';');
+    WriteLn('Path[',i,'].Dest    := ', path[i].Dest ,';');
   end;
 end;
 
@@ -209,10 +212,10 @@ var
   function ValidClick(pos:TPoint): Boolean;
   var v,W,H:Int32;
   begin
-    client2.getIOManager.GetPosition(v,v);
+    client2.GetIOManager.GetPosition(v,v);
     if v > 30000 then Exit(False);
 
-    client2.getIOManager.GetDimensions(W,H);
+    client2.GetIOManager.GetDimensions(W,H);
     Result := (pos.x >= 0) and (pos.x < W) and (pos.y >= 0) and (pos.y < H);
   end;
 
