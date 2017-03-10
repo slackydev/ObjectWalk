@@ -24,7 +24,8 @@ begin
   while True do
   begin
     Walker.Init();
-    Walker.DebugDTM([614,79], [[mmTree,656,49],[mmRock,596,78],[mmTree,651,84]], Smart.Image);
+    //Walker.DebugMinimap(smart.Image);
+    Walker.DebugDTMs([[mmRock,606,94],[mmDeadTree,626,51],[mmTree,632,70],[mmTree,667,96], [mmTree,627,107]], Smart.Image, , True);
     Wait(65);
   end;
 end.

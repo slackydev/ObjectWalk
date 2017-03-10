@@ -27,7 +27,7 @@ procedure LoadFallyPath();
 begin
   SetLength(Path, 5);
   path[0].Objects := [[mmTree, 585, 68],[mmRed, 655, 122],[mmRed, 634, 129]];
-  path[0].Dest    := [[620,86], [616, 133]];
+  path[0].Dest    := [[620,86], [620, 133]];
   path[1].Objects := [[mmLadder, 661, 102],[mmLadder, 589, 92],[mmRed, 666, 118]];
   path[1].Dest    := [[642,137]];
   path[2].Objects := [[mmRed, 665, 65],[mmTree, 661, 118],[mmLadder, 659, 49]];

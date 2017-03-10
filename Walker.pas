@@ -45,9 +45,9 @@ const
 *)
 procedure TObjectWalk.Init();
 begin
-  self.MaxOffset     := 20;      //How much the minimap can offset in relation to the compass.
-  self.MaxInaccuracy := 2.7;     //With slightly inaccurate object finding and other defomities on the mm, we need to allow a little inaccuracy.
-  self.MaxScale      := 1.18;    //Minimap scales 10-15%(?) (-20%,+10%), but there are various defomities that cause our readings to be inaccurate.
+  self.MaxOffset     := 20;          //How much the minimap can offset in relation to the compass.
+  self.MaxInaccuracy := Hypot(4,4);  //With slightly inaccurate object finding and other defomities on the mm, we need to allow a little inaccuracy.
+  self.MaxScale      := 1.18;        //Minimap scales 10-15%(?) (-20%,+10%), but there are various defomities that cause our readings to be inaccurate.
 end;
 
 
@@ -165,9 +165,9 @@ end;
 procedure TObjectWalk.WalkTo(pt:TPoint{$IFDEF OW:SMARTDEBUG}; step:TPoint; DTM:TMMDTM{$ENDIF}); constref;
 begin
   {$IFDEF OW:SMARTDEBUG}self.DebugDTM(step, DTM, Smart.Image);{$ENDIF}
-  Mouse.Click(pt, 1);
+  Mouse.Click(pt, mouse_left);
 
-  while minimap.IsFlagPresent(800) do
+  while minimap.IsFlagPresent(300) do
   begin
     {$IFDEF OW:SMARTDEBUG}
       self.DebugDTM(step, DTM, Smart.Image);
@@ -187,9 +187,9 @@ end;
 *)
 function TObjectWalk.Walk(Path:TMMPath): Boolean; constref;
 var
-  i,j,_: Int32;
+  i,j,_,t: Int64;
   step,pt: TPoint;
-  //matches: TMMDTMResultArray;
+  matches: TMMDTMResultArray;
   F: TMMDTMResult;
   theta,scale: Double;
 begin
@@ -206,37 +206,40 @@ begin
         continue;
       end;
 
-      for _:=0 to 19 do
-      begin
-        {$IFDEF OW:SMARTDEBUG}
-          if not self.DebugDTM(step, Path[i].Objects, Smart.Image) then
-            Smart.Image.DrawClear(0);
-        {$ENDIF}
+      t := GetTickCount() + 3500;
+      repeat
+        if not self.FindDTM(matches, Path[i].Objects, 200) then
+          continue;
 
-        if not self.FindDTM(F, Path[i].Objects) then
+        for F in matches do
         begin
-          {$IFDEF OW:DEBUG_WORDY}WriteLn('Warning: Unable to find DTM ', i);{$ENDIF}
-          Exit(False);
-        end;
-        
-        pt.x := step.x - Path[i].Objects[0].x;
-        pt.y := step.y - Path[i].Objects[0].y;
-        pt := self.AdjustPoint(pt, F.DTM[0], F.theta, F.scale);
-        
-        {$IFDEF OW:SMARTDEBUG}
-          Smart.Image.DrawClear(0);
-        {$ENDIF}
+          pt.x := step.x - Path[i].Objects[0].x;
+          pt.y := step.y - Path[i].Objects[0].y;
+          pt := self.AdjustPoint(pt, F.DTM[0], F.theta, F.scale);
 
-        if srl.PointInPoly(pt, MINIMAP_POLYGON) then Break;
-        Wait(50);
+          if srl.PointInPoly(pt, MINIMAP_POLYGON) then
+            Break(2);
+        end;
+      until (not Minimap.isPlayerMoving()) and (GetTickCount() > t);
+
+      if Length(matches) = 0 then
+      begin
+        {$IFDEF OW:DEBUG_WORDY}WriteLn('Error: Unable to find DTM ', i);{$ENDIF}
+        Exit(False);
       end;
+
       if not srl.PointInPoly(pt, MINIMAP_POLYGON) then
       begin
-        {$IFDEF OW:DEBUG_WORDY}WriteLn('Warning: Point out of Range ', pt);{$ENDIF}
+        {$IFDEF OW:DEBUG_WORDY}WriteLn('Error: Point out of Range ', pt);{$ENDIF}
         Exit(False);
       end;
 
       self.WalkTo(pt{$IFDEF OW:SMARTDEBUG},step,Path[i].Objects{$ENDIF});
+
+      {$IFDEF OW:DEBUG_WORDY}
+        if Length(matches) > 1 then
+          WriteLn('Warning: Found several matches of DTM #', i);
+      {$ENDIF}
 
       theta := F.theta;
       scale := F.scale;
@@ -300,9 +303,9 @@ begin
   Goal.x -= DTM[0].x;
   Goal.y -= DTM[0].y;
 
-  if not self.FindDTM(F, DTM) then
+  if not self.FindDTM(F, DTM, 100) then
   begin
-    {$IFDEF OW:DEBUG_WORDY}WriteLn('Unable to find DTM!');{$ENDIF}
+    {$IFDEF OW:DEBUG_WORDY}WriteLn('DebugDTM: Unable to find DTM!');{$ENDIF}
     Exit(False);
   end;
 
@@ -360,9 +363,9 @@ begin
   if Length(DTM) = 0 then Exit();
   Result := True;
 
-  if not self.FindDTM(matches, DTM) then
+  if not self.FindDTM(matches, DTM, 100) then
   begin
-    {$IFDEF OW:DEBUG_WORDY}WriteLn('Unable to find DTM!');{$ENDIF}
+    {$IFDEF OW:DEBUG_WORDY}WriteLn('DebugDTMs: Unable to find DTM!');{$ENDIF}
     Exit(False);
   end;
 

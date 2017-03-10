@@ -26,6 +26,7 @@ program ShittyPathMakingTool;
 {$hints off}
 {$define SMART}
 {$I SRL/OSR.simba}
+{$DEFINE OW:SMARTDEBUG}
 {$I ObjectWalk/Walker.simba}
 
 type
